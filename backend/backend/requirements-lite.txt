@@ -1,3 +1,0 @@
-# LiteLLM is the unified LLM gateway. It requires Python <3.14.
-# Install separately (optional) once a compatible Python is available.
-litellm>=1.56
