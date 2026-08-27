@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aios-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aios-backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:///./aios.db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis-data:

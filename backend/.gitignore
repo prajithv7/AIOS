@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+.pytest_cache/
+boot*.log
+*.log
+aios_smoke.db
+aios_test.db
