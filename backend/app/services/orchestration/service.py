@@ -1,6 +1,6 @@
 from typing import Optional
 
-from app.db.schema import ModelRun, FallbackEvent as FallbackEventModel, Conversation
+from app.db.schema import ModelRun, FallbackEvent as FallbackEventModel, Conversation, UsageRecord
 from app.providers.llm_gateway import LLMGateway, ChatRequest, ChatChunk
 from app.services.credentials.service import CredentialsService
 from app.services.conversations.service import ConversationService
@@ -113,6 +113,9 @@ class OrchestrationService:
             output_tokens=response.output_tokens,
         )
         self.db.add(run)
+
+        await self._record_usage(user_id, conversation_id, used_model, response)
+
         await self.db.commit()
 
         return {
@@ -166,6 +169,17 @@ class OrchestrationService:
         except AppError:
             return None
 
+    async def _record_usage(self, user_id: str, conversation_id: str, model, response) -> None:
+        usage = UsageRecord(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            provider_id=model.provider_id,
+            model_id=model.id,
+            input_tokens=response.input_tokens or 0,
+            output_tokens=response.output_tokens or 0,
+        )
+        self.db.add(usage)
+
     async def stream(self, user_id, conversation_id, content, model_id) -> "async iterator":
         conv = await self.conversations.require(user_id, conversation_id)
         model = await self.models.get_model(model_id)
@@ -186,6 +200,7 @@ class OrchestrationService:
                 run = ModelRun(conversation_id=conversation_id, message_id=msg.id, provider_id=model.provider_id,
                                model_id=model.id, status="success")
                 self.db.add(run)
+                await self._record_usage(user_id, conversation_id, model, type("R", (), {"input_tokens": 0, "output_tokens": len(full.split())})())
                 await self.db.commit()
                 await self.health.record_success(model.provider_id)
                 yield ChatChunk(token="", model_id=model.id, provider_id=model.provider_id, type="done")

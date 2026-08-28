@@ -53,6 +53,22 @@ class ConversationService:
     async def require(self, user_id: str, conversation_id: str) -> Conversation:
         return await self.get(user_id, conversation_id)
 
+    async def update(self, user_id: str, conversation_id: str, title: str = None, project_id: str = None) -> dict:
+        conv = await self.get(user_id, conversation_id)
+        if title is not None:
+            conv.title = title
+        if project_id is not None:
+            conv.project_id = project_id
+        await self.db.commit()
+        await self.db.refresh(conv)
+        return {"id": conv.id, "title": conv.title, "project_id": conv.project_id}
+
+    async def delete(self, user_id: str, conversation_id: str) -> bool:
+        conv = await self.get(user_id, conversation_id)
+        await self.db.delete(conv)
+        await self.db.commit()
+        return True
+
     async def list_messages(self, user_id: str, conversation_id: str) -> list[dict]:
         conv = await self.get(user_id, conversation_id)
         return [

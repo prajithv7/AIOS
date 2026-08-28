@@ -40,7 +40,7 @@ async def compare(data: CompareRequest, user_id: str = Depends(get_current_user_
         history = await conv_service.get_history(user_id, data.conversationId, limit=6)
         context = history
 
-    result = await service.run(user_id, data.content, data.modelIds, context)
+    result = await service.run(user_id, data.content, data.modelIds, context, conversation_id=data.conversationId)
 
     comparison = Comparison(
         conversation_id=data.conversationId,

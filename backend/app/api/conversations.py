@@ -17,6 +17,11 @@ class ConversationCreate(BaseModel):
     project_id: str | None = None
 
 
+class ConversationUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    project_id: str | None = None
+
+
 class MessageCreate(BaseModel):
     content: str
     modelId: str | None = None
@@ -40,6 +45,19 @@ async def get_conversation(conversation_id: str, user_id: str = Depends(get_curr
     service = ConversationService(db)
     conv = await service.get(user_id, conversation_id)
     return {"id": conv.id, "title": conv.title, "project_id": conv.project_id}
+
+
+@router.patch("/{conversation_id}")
+async def update_conversation(conversation_id: str, data: ConversationUpdate, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    service = ConversationService(db)
+    return await service.update(user_id, conversation_id, data.title, data.project_id)
+
+
+@router.delete("/{conversation_id}")
+async def delete_conversation(conversation_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    service = ConversationService(db)
+    await service.delete(user_id, conversation_id)
+    return {"ok": True}
 
 @router.get("/{conversation_id}/messages")
 async def list_messages(conversation_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):

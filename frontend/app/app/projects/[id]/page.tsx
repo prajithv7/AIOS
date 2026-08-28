@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "@/lib/api";
@@ -10,6 +10,7 @@ const MEMORY_TYPES = ["instructions", "decisions", "tech_stack", "preferences", 
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const projectId = params.id;
   const queryClient = useQueryClient();
 
@@ -17,9 +18,20 @@ export default function ProjectDetailPage() {
   const [type, setType] = useState("notes");
   const [content, setContent] = useState("");
 
+  const { data: project } = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: () => projectsApi.list().then((ps) => ps.find((p) => p.id === projectId)),
+  });
+
   const { data: memory = [] } = useQuery({
     queryKey: ["memory", projectId],
     queryFn: () => projectsApi.memory(projectId),
+  });
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ["projectConversations", projectId],
+    queryFn: () => projectsApi.conversations(projectId),
+    enabled: tab === "conversations",
   });
 
   const createMutation = useMutation({
@@ -35,10 +47,31 @@ export default function ProjectDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["memory", projectId] }),
   });
 
+  const deleteProjectMutation = useMutation({
+    mutationFn: () => projectsApi.delete(projectId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      router.push("/app/projects");
+    },
+  });
+
   return (
     <div className="mx-auto max-w-3xl p-8">
-      <p className="eyebrow">Project</p>
-      <h1 className="mt-2 text-2xl text-primary">{projectId}</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="eyebrow">Project</p>
+          <h1 className="mt-2 text-2xl text-primary">{project?.name || projectId}</h1>
+          {project?.description && <p className="mt-1 text-sm text-secondary">{project.description}</p>}
+        </div>
+        <Button
+          variant="danger"
+          onClick={() => {
+            if (confirm("Delete this project and all its memory?")) deleteProjectMutation.mutate();
+          }}
+        >
+          Delete project
+        </Button>
+      </div>
 
       <div className="mt-4 flex gap-2 border-b border-border">
         {(["memory", "conversations"] as const).map((t) => (
@@ -95,7 +128,29 @@ export default function ProjectDetailPage() {
       )}
 
       {tab === "conversations" && (
-        <p className="mt-6 text-sm text-muted">Conversations for this project will appear here.</p>
+        <div className="mt-6">
+          {conversations.length === 0 ? (
+            <p className="text-sm text-muted">No conversations in this project yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {conversations.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => router.push(`/app/chat/${c.id}`)}
+                  className="w-full text-left"
+                >
+                  <Card className="transition-colors hover:border-accent">
+                    <h3 className="text-sm font-medium text-primary">{c.title}</h3>
+                    <div className="mt-1 flex gap-3 text-xs text-muted">
+                      <span>{c.message_count} messages</span>
+                      {c.created_at && <span>{new Date(c.created_at).toLocaleDateString()}</span>}
+                    </div>
+                  </Card>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
