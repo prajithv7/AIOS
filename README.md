@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/arbiter-logo.jpg" alt="Arbiter logo" width="180" />
+  <img src="./assets/arbiter-logo.png" alt="Arbiter logo" width="160">
 </p>
 
 <h1 align="center">Arbiter</h1>
