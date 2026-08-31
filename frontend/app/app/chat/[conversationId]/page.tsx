@@ -26,6 +26,7 @@ export default function ChatWorkspace() {
   const [streamError, setStreamError] = useState<{ code: string; message: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -137,8 +138,10 @@ export default function ChatWorkspace() {
     : null;
 
   return (
-    <div className="flex h-screen">
-      <aside className="flex w-64 flex-col border-r border-border bg-surface">
+    <div className="flex h-screen overflow-hidden">
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />}
+      
+      <aside className={`fixed inset-y-0 left-0 z-30 flex w-64 transform flex-col border-r border-border bg-surface transition-transform md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-3">
           <button
             onClick={handleNewConversation}
@@ -211,11 +214,16 @@ export default function ChatWorkspace() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden w-full">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
-          <h2 className="truncate text-primary">
-            {conversations.find((c) => c.id === conversationId)?.title || "New conversation"}
-          </h2>
+          <div className="flex items-center gap-3">
+            <button className="md:hidden text-primary p-1 hover:bg-page rounded" onClick={() => setSidebarOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6l16 0" /><path d="M4 12l16 0" /><path d="M4 18l16 0" /></svg>
+            </button>
+            <h2 className="truncate text-primary">
+              {conversations.find((c) => c.id === conversationId)?.title || "New conversation"}
+            </h2>
+          </div>
           <div className="flex items-center gap-2">
             <ModelSelector
               models={models}
