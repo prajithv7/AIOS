@@ -48,6 +48,24 @@ async def get_project(project_id: str, user_id: str = Depends(get_current_user_i
     return {"id": p.id, "name": p.name, "description": p.description}
 
 
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+@router.put("/{project_id}")
+async def update_project(project_id: str, data: ProjectUpdate, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    service = MemoryService(db)
+    return await service.update_project(user_id, project_id, data.name, data.description)
+
+
+@router.delete("/{project_id}")
+async def delete_project(project_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    service = MemoryService(db)
+    await service.delete_project(user_id, project_id)
+    return {"ok": True}
+
+
 @router.get("/{project_id}/summary")
 async def project_summary(project_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     service = SummaryService(db)

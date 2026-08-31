@@ -150,3 +150,99 @@ async def test_project_summary_md(client, authed):
 async def test_unauthorized(client):
     r = await client.get("/api/users/me")
     assert r.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_project_update_and_delete(client, authed):
+    r = await client.post("/api/projects", headers=authed, json={"name": "TempProj", "description": "to delete"})
+    assert r.status_code == 200
+    pid = r.json()["id"]
+
+    r = await client.put(f"/api/projects/{pid}", headers=authed, json={"name": "UpdatedProj"})
+    assert r.status_code == 200
+    assert r.json()["name"] == "UpdatedProj"
+    assert r.json()["description"] == "to delete"
+
+    r = await client.delete(f"/api/projects/{pid}", headers=authed)
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+    r = await client.get(f"/api/projects/{pid}", headers=authed)
+    assert r.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_conversation_delete(client, authed):
+    r = await client.post("/api/conversations", headers=authed, json={"title": "To Delete"})
+    assert r.status_code == 200
+    cid = r.json()["id"]
+
+    r = await client.delete(f"/api/conversations/{cid}", headers=authed)
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+    r = await client.get(f"/api/conversations/{cid}", headers=authed)
+    assert r.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_conversation_update_title(client, authed):
+    r = await client.post("/api/conversations", headers=authed, json={"title": "Old Title"})
+    assert r.status_code == 200
+    cid = r.json()["id"]
+
+    r = await client.patch(f"/api/conversations/{cid}", headers=authed, json={"title": "New Title"})
+    assert r.status_code == 200
+    assert r.json()["title"] == "New Title"
+
+
+@pytest.mark.anyio
+async def test_conversation_cannot_delete_others(client, authed):
+    r = await client.post("/api/conversations", headers=authed, json={"title": "Owned"})
+    cid = r.json()["id"]
+
+    r2 = await client.post("/api/auth/signup", json={"email": "other@test.com", "name": "Other", "password": "pass123"})
+    other_token = r2.json()["access_token"]
+    other_headers = {"Authorization": "Bearer " + other_token}
+
+    r = await client.delete(f"/api/conversations/{cid}", headers=other_headers)
+    assert r.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_update_user_me_name(client, authed):
+    r = await client.put("/api/users/me", headers=authed, json={"name": "Updated User"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name"] == "Updated User"
+    assert body["email"] == "u@x.com"
+
+
+@pytest.mark.anyio
+async def test_update_user_me_password(client, authed):
+    r = await client.put("/api/users/me", headers=authed, json={
+        "current_password": "secret123",
+        "new_password": "newpass456",
+    })
+    assert r.status_code == 200
+
+    r = await client.post("/api/auth/login", json={"email": "u@x.com", "password": "newpass456"})
+    assert r.status_code == 200
+    assert "access_token" in r.json()
+
+
+@pytest.mark.anyio
+async def test_update_user_me_wrong_password(client, authed):
+    r = await client.put("/api/users/me", headers=authed, json={
+        "current_password": "wrongpassword",
+        "new_password": "newpass456",
+    })
+    assert r.status_code == 401
+
+
+@pytest.mark.anyio
+async def test_update_user_me_no_current_password(client, authed):
+    r = await client.put("/api/users/me", headers=authed, json={
+        "new_password": "newpass456",
+    })
+    assert r.status_code == 422

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { conversationsApi, modelsApi, routeApi } from "@/lib/api";
 import { streamChat } from "@/lib/stream";
 import { Message } from "@/lib/api/types";
@@ -24,6 +24,9 @@ export default function ChatWorkspace() {
   const [streamText, setStreamText] = useState("");
   const [streamModel, setStreamModel] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<{ code: string; message: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +38,22 @@ export default function ChatWorkspace() {
     enabled: !!conversationId,
   });
   const { fetch: fetchKeys } = useKeyVaultStore();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => conversationsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      router.push("/app/chat/new");
+    },
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) => conversationsApi.update(id, { title }),
+    onSuccess: () => {
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
 
   useEffect(() => {
     fetchKeys().catch(() => undefined);
@@ -119,8 +138,10 @@ export default function ChatWorkspace() {
     : null;
 
   return (
-    <div className="flex h-screen">
-      <aside className="flex w-64 flex-col border-r border-border bg-surface">
+    <div className="flex h-screen overflow-hidden">
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />}
+      
+      <aside className={`fixed inset-y-0 left-0 z-30 flex w-64 transform flex-col border-r border-border bg-surface transition-transform md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-3">
           <button
             onClick={handleNewConversation}
@@ -131,24 +152,78 @@ export default function ChatWorkspace() {
         </div>
         <div className="flex-1 overflow-y-auto px-2 pb-4">
           {conversations.map((c) => (
-            <button
+            <div
               key={c.id}
-              onClick={() => router.push(`/app/chat/${c.id}`)}
-              className={`mb-1 w-full rounded px-3 py-2 text-left text-sm transition-colors ${
+              className={`group mb-1 flex items-center rounded transition-colors ${
                 c.id === conversationId ? "bg-accent-soft text-accent" : "text-secondary hover:bg-page"
               }`}
             >
-              <span className="block truncate">{c.title}</span>
-            </button>
+              {editingId === c.id ? (
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={() => {
+                    if (editTitle.trim()) renameMutation.mutate({ id: c.id, title: editTitle.trim() });
+                    setEditingId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      if (editTitle.trim()) renameMutation.mutate({ id: c.id, title: editTitle.trim() });
+                      setEditingId(null);
+                    }
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => router.push(`/app/chat/${c.id}`)}
+                  className="flex-1 truncate px-3 py-2 text-left text-sm"
+                >
+                  {c.title}
+                </button>
+              )}
+              {editingId !== c.id && (
+                <div className="hidden gap-1 px-1 group-hover:flex">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(c.id);
+                      setEditTitle(c.title);
+                    }}
+                    className="rounded px-1 text-xs text-muted hover:text-primary"
+                    title="Rename"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Delete this conversation?")) deleteMutation.mutate(c.id);
+                    }}
+                    className="rounded px-1 text-xs text-muted hover:text-[#c0392b]"
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-hidden w-full">
         <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
-          <h2 className="truncate text-primary">
-            {conversations.find((c) => c.id === conversationId)?.title || "New conversation"}
-          </h2>
+          <div className="flex items-center gap-3">
+            <button className="md:hidden text-primary p-1 hover:bg-page rounded" onClick={() => setSidebarOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6l16 0" /><path d="M4 12l16 0" /><path d="M4 18l16 0" /></svg>
+            </button>
+            <h2 className="truncate text-primary">
+              {conversations.find((c) => c.id === conversationId)?.title || "New conversation"}
+            </h2>
+          </div>
           <div className="flex items-center gap-2">
             <ModelSelector
               models={models}

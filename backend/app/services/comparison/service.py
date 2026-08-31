@@ -7,6 +7,7 @@ from app.services.routing.router import ModelService
 from app.services.context.budget import fit_messages_to_budget
 from app.core.errors import AppError
 from app.core.config import settings
+from app.db.schema import UsageRecord
 
 
 @dataclass
@@ -44,7 +45,7 @@ class ComparisonService:
         self.gateway = gateway or LLMGateway()
         self.model_service = ModelService(db)
 
-    async def run(self, user_id: str, content: str, model_ids: list[str], context_messages: list[dict] = None) -> dict:
+    async def run(self, user_id: str, content: str, model_ids: list[str], context_messages: list[dict] = None, conversation_id: str = None) -> dict:
         if not model_ids:
             raise AppError("INVALID_REQUEST", "No models selected", 422)
         if len(model_ids) > 6:
@@ -55,6 +56,18 @@ class ComparisonService:
 
         tasks = [self._run_single(model_id, content, context_messages, authorized_providers, keys) for model_id in model_ids]
         runs = await asyncio.gather(*tasks, return_exceptions=False)
+
+        for r in runs:
+            if r.status == "success":
+                usage = UsageRecord(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    provider_id=r.provider_id,
+                    model_id=r.model_id,
+                    input_tokens=r.input_tokens,
+                    output_tokens=r.output_tokens,
+                )
+                self.db.add(usage)
 
         winner, scores, reason = await self._judge(content, runs)
 

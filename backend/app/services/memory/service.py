@@ -40,6 +40,22 @@ class MemoryService:
     async def require_project(self, user_id: str, project_id: str) -> Project:
         return await self.get_project(user_id, project_id)
 
+    async def update_project(self, user_id: str, project_id: str, name: str = None, description: str = None) -> dict:
+        project = await self.require_project(user_id, project_id)
+        if name is not None:
+            project.name = name
+        if description is not None:
+            project.description = description
+        await self.db.commit()
+        await self.db.refresh(project)
+        return {"id": project.id, "name": project.name, "description": project.description}
+
+    async def delete_project(self, user_id: str, project_id: str) -> bool:
+        project = await self.require_project(user_id, project_id)
+        await self.db.delete(project)
+        await self.db.commit()
+        return True
+
     async def list_memory(self, user_id: str, project_id: str) -> list[dict]:
         await self.require_project(user_id, project_id)
         entries = await self.db.execute(

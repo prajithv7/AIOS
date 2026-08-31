@@ -47,6 +47,12 @@ export const conversationsApi = {
       body: JSON.stringify({ title, project_id: projectId ?? null }),
     }),
   get: (id: string) => api<{ id: string; title: string; project_id: string | null }>(`/api/conversations/${id}`),
+  update: (id: string, data: { title?: string; project_id?: string | null }) =>
+    api<{ id: string; title: string; project_id: string | null }>(`/api/conversations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) => api<{ ok: boolean }>(`/api/conversations/${id}`, { method: "DELETE" }),
   messages: (id: string) => api<Message[]>(`/api/conversations/${id}/messages`),
   send: (conversationId: string, content: string, modelId?: string) =>
     api<{ message: Message; model_id: string; provider_id: string; latency_ms: number }>(
@@ -79,6 +85,13 @@ export const projectsApi = {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
+  update: (id: string, data: { name?: string; description?: string }) =>
+    api<{ id: string; name: string; description: string | null }>(`/api/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) => api<{ ok: boolean }>(`/api/projects/${id}`, { method: "DELETE" }),
+  conversations: (id: string) => api<Conversation[]>(`/api/projects/${id}/conversations`),
   memory: (projectId: string) => api<MemoryItem[]>(`/api/projects/${projectId}/memory`),
   createMemory: (projectId: string, type: string, content: string) =>
     api<MemoryItem>(`/api/projects/${projectId}/memory`, {
