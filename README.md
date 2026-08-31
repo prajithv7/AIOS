@@ -5,14 +5,27 @@
 <h1 align="center">Arbiter</h1>
 
 <p align="center">
-  <strong>One workspace for every AI model.</strong><br />
-  Chat, switch models, compare responses, and let an AI judge help you choose the strongest result.
+  <strong>One workspace. Every model. One intelligent judge.</strong>
 </p>
 
 <p align="center">
-  <em>Provider-agnostic AI workspace with model routing, multi-model comparison, project memory, secure API-key management, and automatic fallback.</em>
+  Arbiter brings multiple AI providers and models into a single workspace.
+  Chat, switch models, compare responses, route tasks intelligently,
+  and let an AI judge identify the strongest answer.
 </p>
 
+<p align="center">
+  <em>
+    Built for developers who want control over their AI workflow.
+  </em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/prajithv7/AIOS">GitHub</a> •
+  <a href="#features">Features</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#architecture">Architecture</a>
+</p>
 ---
 
 ## Why Arbiter?
